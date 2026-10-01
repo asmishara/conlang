@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { deleteLanguage } from "../actions";
 
 const sections = [
-  { title: "Word generator", note: "Generate words that fit your phonology (coming in M1)." },
   { title: "Grammar", note: "Grammar pages and inflection tables (coming in M2)." },
 ];
 
@@ -54,6 +53,13 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
               ? "Start your dictionary."
               : `${language._count.words} word${language._count.words === 1 ? "" : "s"}`}
           </p>
+        </Link>
+        <Link
+          href={`/languages/${language.id}/generator`}
+          className="rounded-lg border border-black/10 p-4 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <h2 className="font-semibold">Word generator</h2>
+          <p className="text-sm opacity-70">Generate words that fit your phonology.</p>
         </Link>
         {sections.map((s) => (
           <div key={s.title} className="rounded-lg border border-black/10 p-4 dark:border-white/15">
