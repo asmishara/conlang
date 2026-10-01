@@ -11,7 +11,7 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
 
   const language = await db.language.findFirst({
     where: { id, ownerId: userId },
-    include: { _count: { select: { phonemes: true, words: true, grammarPages: true } } },
+    include: { _count: { select: { phonemes: true, words: true, grammarPages: true, paradigms: true } } },
   });
   if (!language) notFound();
 
@@ -66,6 +66,17 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
             {language._count.grammarPages === 0
               ? "Document your grammar with glossed examples."
               : `${language._count.grammarPages} page${language._count.grammarPages === 1 ? "" : "s"}`}
+          </p>
+        </Link>
+        <Link
+          href={`/languages/${language.id}/inflection`}
+          className="rounded-lg border border-black/10 p-4 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <h2 className="font-semibold">Inflection</h2>
+          <p className="text-sm opacity-70">
+            {language._count.paradigms === 0
+              ? "Set up tables of word forms, like case and number."
+              : `${language._count.paradigms} table${language._count.paradigms === 1 ? "" : "s"}`}
           </p>
         </Link>
       </div>

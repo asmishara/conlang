@@ -86,6 +86,7 @@ model Language {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   grammarPages GrammarPage[]
+  paradigms    Paradigm[]
 
   @@index([ownerId])
 }
@@ -161,4 +162,22 @@ model GrammarPage {
   updatedAt  DateTime      @updatedAt
 
   @@index([languageId, parentId, position])
+}
+
+/// An inflection table for one part of speech, e.g. noun case × number.
+model Paradigm {
+  id           String   @id @default(cuid())
+  languageId   String
+  language     Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  name         String
+  /// Words with this part of speech get these forms.
+  partOfSpeech String
+  /// [{ name: "Case", values: ["nominative", "accusative"] }, ...], at most three.
+  dimensions   Json
+  /// The rule for each cell, keyed by the JSON array of its values in dimension order.
+  rules        Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([languageId, partOfSpeech])
 }

@@ -54,3 +54,9 @@ body {
 .gloss-example::before { content: "(" counter(example) ")"; min-width: 2.25rem; }
 
 .small-caps { font-variant: small-caps; letter-spacing: 0.02em; }
+
+/* Inflection tables */
+.paradigm-table { border-collapse: collapse; }
+.paradigm-table th, .paradigm-table td { border: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding: 0.35rem 0.6rem; text-align: left; vertical-align: top; }
+.paradigm-table thead th { font-weight: 600; }
+.paradigm-table tbody th { font-weight: 500; opacity: 0.8; white-space: nowrap; }

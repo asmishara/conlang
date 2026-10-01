@@ -3,24 +3,9 @@
 import { useActionState, useState } from "react";
 import { unknownLetters } from "@/lib/lexicon";
 import { pronounce, type SpellingRule } from "@/lib/orthography";
+import { partsOfSpeech } from "@/lib/parts-of-speech";
 import { compilePhonotactics, describeProblem, wordProblems, type Phonotactics } from "@/lib/phonotactics";
 import type { WordFormState } from "./actions";
-
-export const partsOfSpeech = [
-  "noun",
-  "verb",
-  "adjective",
-  "adverb",
-  "pronoun",
-  "preposition",
-  "postposition",
-  "conjunction",
-  "particle",
-  "interjection",
-  "numeral",
-  "determiner",
-  "affix",
-];
 
 const field = "w-full rounded-md border border-black/15 bg-transparent px-3 py-2 dark:border-white/20";
 
