@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { segment, spell } from "./orthography";
+import { alphabetComparator, pronounce, readSpelling, segment, spell } from "./orthography";
 
 const rules = [
   { ipa: "t", spelling: "t" },
@@ -45,6 +45,53 @@ describe("segment", () => {
   });
 
   it("matches decomposed input against precomposed rules", () => {
-    expect(spell("â", [{ ipa: "â", spelling: "A" }])).toBe("A");
+    expect(spell("a\u0302", [{ ipa: "\u00e2", spelling: "A" }])).toBe("A");
+  });
+});
+
+describe("readSpelling / pronounce", () => {
+  it("reads digraphs as one sound", () => {
+    expect(pronounce("chang", rules)).toBe("t͡ʃaŋ");
+    expect(pronounce("shâ", rules)).toBe("ʃaː");
+  });
+
+  it("matches case-insensitively when no exact rule exists", () => {
+    expect(pronounce("Chang", rules)).toBe("t͡ʃaŋ");
+  });
+
+  it("prefers an exact-case rule when the language distinguishes case", () => {
+    const klingonish = [
+      { ipa: "q", spelling: "q" },
+      { ipa: "q͡χ", spelling: "Q" },
+      { ipa: "a", spelling: "a" },
+    ];
+    expect(pronounce("Qaq", klingonish)).toBe("q͡χaq");
+  });
+
+  it("keeps unknown letters and skips spaces", () => {
+    expect(readSpelling("tax", rules).map((s) => s.known)).toEqual([true, true, false]);
+    expect(pronounce("ta ta", rules)).toBe("tata");
+  });
+});
+
+describe("alphabetComparator", () => {
+  const alphabet = [
+    { ipa: "a", spelling: "a" },
+    { ipa: "n", spelling: "n" },
+    { ipa: "ŋ", spelling: "ng" },
+    { ipa: "z", spelling: "z" },
+  ];
+  const compare = alphabetComparator(alphabet);
+
+  it("treats a digraph as its own letter after its first character", () => {
+    expect(["nga", "nza", "na", "a"].sort(compare)).toEqual(["a", "na", "nza", "nga"]);
+  });
+
+  it("puts shorter prefixes first and ignores case", () => {
+    expect(["Nan", "na", "an"].sort(compare)).toEqual(["an", "na", "Nan"]);
+  });
+
+  it("sorts letters outside the alphabet after known ones", () => {
+    expect(["xa", "za", "aa"].sort(compare)).toEqual(["aa", "za", "xa"]);
   });
 });
