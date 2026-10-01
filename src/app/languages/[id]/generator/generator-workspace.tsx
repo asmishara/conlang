@@ -171,7 +171,8 @@ export function GeneratorWorkspace({
           <span className="font-semibold">Syllable patterns</span>
           <span className="block text-xs opacity-70">
             One per line. Letters are categories, parentheses mark optional parts, anything else is used as is.
-            For example: <code>CV</code>, <code>(C)V(N)</code>, <code>sCV</code>.
+            For example: <code>CV</code>, <code>(C)V(N)</code>, <code>sCV</code>. Once saved, they also check the
+            words in your lexicon.
           </span>
           <textarea
             value={draft.patterns}
@@ -217,7 +218,8 @@ export function GeneratorWorkspace({
         <label className="block space-y-1">
           <span className="font-semibold">Forbidden sequences</span>
           <span className="block text-xs opacity-70">
-            Words containing any of these (in IPA, separated by spaces) are skipped, e.g. <code>ji wu</code>.
+            Generated words containing any of these (in IPA, separated by spaces) are skipped, and lexicon words
+            that contain them are flagged. For example: <code>ji wu</code>.
           </span>
           <input
             value={draft.forbidden}

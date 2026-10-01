@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
 import { db } from "@/lib/db";
+import { phonotacticsOf } from "@/lib/phonotactics";
 import { deleteWord, updateWord } from "../actions";
 import { WordForm } from "../word-form";
 
@@ -17,6 +18,7 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
         select: {
           name: true,
           phonemes: { orderBy: { position: "asc" }, select: { ipa: true, spelling: true } },
+          generator: { select: { categories: true, patterns: true, forbidden: true } },
         },
       },
     },
@@ -34,6 +36,7 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
       <WordForm
         action={updateWord.bind(null, id, wordId)}
         rules={word.language.phonemes}
+        phonotactics={phonotacticsOf(word.language.generator)}
         initial={word}
         submitLabel="Save changes"
         showDetails
