@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
 import { db } from "@/lib/db";
 import { prepareWords } from "@/lib/lexicon";
+import { compilePhonotactics, describeProblem, phonotacticsOf } from "@/lib/phonotactics";
 import { createWord, importWords } from "./actions";
 import { ImportForm } from "./import-form";
 import { WordForm } from "./word-form";
@@ -12,6 +13,7 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const pos = typeof sp.pos === "string" ? sp.pos : "";
+  const misfitsOnly = sp.misfits === "1";
 
   const userId = await currentUserId();
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/lexicon`);
@@ -22,6 +24,7 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
       id: true,
       name: true,
       phonemes: { orderBy: { position: "asc" }, select: { ipa: true, spelling: true } },
+      generator: { select: { categories: true, patterns: true, forbidden: true } },
     },
   });
   if (!language) notFound();
@@ -51,8 +54,16 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
     }),
   ]);
   const rules = language.phonemes;
-  const words = prepareWords(rows, rules);
-  const filtered = q !== "" || pos !== "";
+  const phonotactics = phonotacticsOf(language.generator);
+  const check = phonotactics && compilePhonotactics(phonotactics);
+  const prepared = prepareWords(rows, rules, check);
+  const misfitCount = prepared.filter((w) => w.problems.length > 0).length;
+  const words = misfitsOnly ? prepared.filter((w) => w.problems.length > 0) : prepared;
+  const filtered = q !== "" || pos !== "" || misfitsOnly;
+  const lexiconUrl = (misfits: boolean) => {
+    const params = new URLSearchParams({ ...(q && { q }), ...(pos && { pos }), ...(misfits && { misfits: "1" }) });
+    return `/languages/${language.id}/lexicon${params.size ? `?${params}` : ""}`;
+  };
 
   return (
     <div className="space-y-8">
@@ -72,12 +83,26 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
               to derive pronunciations and sort by your alphabet.
             </>
           )}
+          {rules.length > 0 && total > 0 && !check && (
+            <>
+              {" · "}
+              <Link href={`/languages/${language.id}/generator`} className="underline">
+                Save syllable patterns
+              </Link>{" "}
+              to check your words against them.
+            </>
+          )}
         </p>
       </header>
 
       <section className="space-y-3 rounded-lg border border-black/10 p-4 dark:border-white/15">
         <h2 className="font-semibold">Add a word</h2>
-        <WordForm action={createWord.bind(null, language.id)} rules={rules} submitLabel="Add word" />
+        <WordForm
+          action={createWord.bind(null, language.id)}
+          rules={rules}
+          phonotactics={phonotactics}
+          submitLabel="Add word"
+        />
       </section>
 
       <section className="space-y-3">
@@ -102,6 +127,7 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
               </option>
             ))}
           </select>
+          {misfitsOnly && <input type="hidden" name="misfits" value="1" />}
           <button type="submit" className="rounded-md border border-black/15 px-3 py-2 dark:border-white/20">
             Search
           </button>
@@ -111,6 +137,20 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
             </Link>
           )}
         </form>
+
+        {(misfitCount > 0 || misfitsOnly) && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            {misfitsOnly ? "Showing" : "⚠"} {misfitCount} word{misfitCount === 1 ? "" : "s"} that{" "}
+            {misfitCount === 1 ? "doesn't" : "don't"} fit your{" "}
+            <Link href={`/languages/${language.id}/generator`} className="underline">
+              syllable patterns
+            </Link>
+            .{" "}
+            <Link href={lexiconUrl(!misfitsOnly)} className="font-medium underline">
+              {misfitsOnly ? "Show all words" : "Show only these"}
+            </Link>
+          </p>
+        )}
 
         {words.length === 0 ? (
           <p className="py-6 text-center opacity-70">
@@ -147,8 +187,15 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
                         </span>
                       )}
                     </td>
-                    <td className={`py-2 pr-3 font-ipa text-base ${w.derived ? "opacity-70" : ""}`}>
-                      {w.ipa ? `/${w.ipa}/` : ""}
+                    <td className="py-2 pr-3">
+                      <span className={`font-ipa text-base ${w.derived ? "opacity-70" : ""}`}>
+                        {w.ipa ? `/${w.ipa}/` : ""}
+                      </span>
+                      {w.problems.map((p) => (
+                        <span key={describeProblem(p)} className="block text-xs text-amber-800 dark:text-amber-300">
+                          ⚠ {describeProblem(p)}
+                        </span>
+                      ))}
                     </td>
                     <td className="py-2 pr-3 italic opacity-80">{w.partOfSpeech}</td>
                     <td className="py-2 pr-3">{w.gloss}</td>

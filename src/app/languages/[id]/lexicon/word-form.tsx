@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { unknownLetters } from "@/lib/lexicon";
 import { pronounce, type SpellingRule } from "@/lib/orthography";
+import { compilePhonotactics, describeProblem, wordProblems, type Phonotactics } from "@/lib/phonotactics";
 import type { WordFormState } from "./actions";
 
 export const partsOfSpeech = [
@@ -42,16 +44,18 @@ const empty: Initial = {
   tags: [],
 };
 
-/** Add or edit a dictionary entry, with a live pronunciation preview. */
+/** Add or edit a dictionary entry, with a live pronunciation preview and checks. */
 export function WordForm({
   action,
   rules,
+  phonotactics,
   initial = empty,
   submitLabel,
   showDetails = false,
 }: {
   action: (prev: WordFormState, formData: FormData) => Promise<WordFormState>;
   rules: SpellingRule[];
+  phonotactics: Phonotactics | null;
   initial?: Initial;
   submitLabel: string;
   showDetails?: boolean;
@@ -60,7 +64,13 @@ export function WordForm({
   // Remount the fields after each successful add so they clear.
   return (
     <form action={formAction} className="space-y-3">
-      <Fields key={state.count ?? 0} rules={rules} initial={initial} showDetails={showDetails} />
+      <Fields
+        key={state.count ?? 0}
+        rules={rules}
+        phonotactics={phonotactics}
+        initial={initial}
+        showDetails={showDetails}
+      />
       <div className="flex items-center gap-3">
         <button
           type="submit"
@@ -80,9 +90,30 @@ export function WordForm({
   );
 }
 
-function Fields({ rules, initial, showDetails }: { rules: SpellingRule[]; initial: Initial; showDetails: boolean }) {
+function Fields({
+  rules,
+  phonotactics,
+  initial,
+  showDetails,
+}: {
+  rules: SpellingRule[];
+  phonotactics: Phonotactics | null;
+  initial: Initial;
+  showDetails: boolean;
+}) {
   const [form, setForm] = useState(initial.form);
+  const [pronunciation, setPronunciation] = useState(initial.pronunciation ?? "");
+  const [partOfSpeech, setPartOfSpeech] = useState(initial.partOfSpeech ?? "");
   const derived = rules.length > 0 && form.trim() ? pronounce(form, rules) : "";
+
+  const unknown = unknownLetters(form, rules);
+  const check = phonotactics && compilePhonotactics(phonotactics);
+  const problems = wordProblems(check, {
+    form,
+    ipa: pronunciation.trim() || derived || null,
+    partOfSpeech: partOfSpeech.trim().toLowerCase(),
+    unreadable: !pronunciation.trim() && unknown.length > 0,
+  });
 
   return (
     <>
@@ -109,7 +140,8 @@ function Fields({ rules, initial, showDetails }: { rules: SpellingRule[]; initia
             name="partOfSpeech"
             list="parts-of-speech"
             maxLength={40}
-            defaultValue={initial.partOfSpeech ?? ""}
+            value={partOfSpeech}
+            onChange={(e) => setPartOfSpeech(e.target.value)}
             className={field}
           />
           <datalist id="parts-of-speech">
@@ -127,7 +159,8 @@ function Fields({ rules, initial, showDetails }: { rules: SpellingRule[]; initia
           <input
             name="pronunciation"
             maxLength={100}
-            defaultValue={initial.pronunciation ?? ""}
+            value={pronunciation}
+            onChange={(e) => setPronunciation(e.target.value)}
             placeholder={derived ? `/${derived}/` : rules.length ? "" : "Set up phonology to derive this"}
             className={`${field} font-ipa`}
           />
@@ -139,6 +172,14 @@ function Fields({ rules, initial, showDetails }: { rules: SpellingRule[]; initia
           <input name="tags" maxLength={500} defaultValue={initial.tags.join(", ")} className={field} />
         </label>
       </div>
+      {(unknown.length > 0 || problems.length > 0) && (
+        <ul className="space-y-0.5 text-sm text-amber-800 dark:text-amber-300">
+          {unknown.length > 0 && <li>⚠ Not in your spelling rules: {unknown.join(" ")}</li>}
+          {problems.map((p) => (
+            <li key={describeProblem(p)}>⚠ {describeProblem(p)}</li>
+          ))}
+        </ul>
+      )}
       {showDetails ? (
         <DetailFields initial={initial} />
       ) : (

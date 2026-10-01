@@ -17,7 +17,10 @@ export type GeneratorSettings = {
   forbidden: string[];
 };
 
-type Node = { type: "category"; label: string } | { type: "literal"; text: string } | { type: "optional"; nodes: Node[] };
+export type PatternNode =
+  | { type: "category"; label: string }
+  | { type: "literal"; text: string }
+  | { type: "optional"; nodes: PatternNode[] };
 
 export type Rng = () => number;
 
@@ -34,8 +37,8 @@ export function seededRng(seed: number): Rng {
 }
 
 /** Parses a pattern, or returns an error message a person can act on. */
-export function parsePattern(pattern: string, labels: Set<string>): { nodes: Node[] } | { error: string } {
-  const stack: Node[][] = [[]];
+export function parsePattern(pattern: string, labels: Set<string>): { nodes: PatternNode[] } | { error: string } {
+  const stack: PatternNode[][] = [[]];
   let literal = "";
   const flush = () => {
     if (literal) stack[stack.length - 1].push({ type: "literal", text: literal });
@@ -100,7 +103,7 @@ function pick(n: number, dropoff: boolean, rng: Rng): number {
   return n - 1;
 }
 
-function render(nodes: Node[], cats: Map<string, string[]>, dropoff: boolean, rng: Rng): string {
+function render(nodes: PatternNode[], cats: Map<string, string[]>, dropoff: boolean, rng: Rng): string {
   let out = "";
   for (const node of nodes) {
     if (node.type === "literal") out += node.text;
@@ -126,7 +129,7 @@ export function generateWords(
 ): string[] {
   if (validateSettings(settings).length > 0) return [];
   const labels = new Set(settings.categories.map((c) => c.label));
-  const patterns = settings.patterns.map((p) => (parsePattern(p, labels) as { nodes: Node[] }).nodes);
+  const patterns = settings.patterns.map((p) => (parsePattern(p, labels) as { nodes: PatternNode[] }).nodes);
   const cats = new Map(settings.categories.map((c) => [c.label, c.members]));
   const forbidden = settings.forbidden.map((f) => f.normalize("NFC")).filter(Boolean);
 
