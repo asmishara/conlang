@@ -88,8 +88,13 @@ model Language {
   grammarPages GrammarPage[]
   paradigms    Paradigm[]
   soundChanges SoundChangeSet[]
+  /// The language this one descends from, when it was made with sound changes.
+  parentId     String?
+  parent       Language?        @relation("Descent", fields: [parentId], references: [id], onDelete: SetNull)
+  daughters    Language[]       @relation("Descent")
 
   @@index([ownerId])
+  @@index([parentId])
 }
 
 enum PhonemeKind {
@@ -128,10 +133,15 @@ model Word {
   notes          String?
   tags           String[]
   irregularForms IrregularForm[]
+  /// The word in the parent language this one evolved from.
+  sourceWordId   String?
+  sourceWord     Word?           @relation("WordDescent", fields: [sourceWordId], references: [id], onDelete: SetNull)
+  descendants    Word[]          @relation("WordDescent")
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
   @@index([languageId])
+  @@index([sourceWordId])
 }
 
 /// Saved word generator settings for a language.

@@ -11,6 +11,7 @@ export default async function LanguagesPage() {
   const languages = await db.language.findMany({
     where: { ownerId: userId },
     orderBy: { updatedAt: "desc" },
+    include: { parent: { select: { name: true, ownerId: true } } },
   });
 
   return (
@@ -27,6 +28,9 @@ export default async function LanguagesPage() {
                   {lang.name}
                 </Link>
                 {lang.autonym && <span className="ml-2 opacity-70">({lang.autonym})</span>}
+                {lang.parent?.ownerId === userId && (
+                  <span className="ml-2 text-sm opacity-60">from {lang.parent.name}</span>
+                )}
               </li>
             ))}
           </ul>

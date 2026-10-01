@@ -30,6 +30,21 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
   });
   if (!word) notFound();
 
+  // Where the word came from and what it became, in this writer's other languages.
+  const [source, descendants] = await Promise.all([
+    word.sourceWordId
+      ? db.word.findFirst({
+          where: { id: word.sourceWordId, language: { ownerId: userId } },
+          select: { id: true, form: true, languageId: true, language: { select: { name: true } } },
+        })
+      : null,
+    db.word.findMany({
+      where: { sourceWordId: wordId, language: { ownerId: userId } },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, form: true, languageId: true, language: { select: { name: true } } },
+    }),
+  ]);
+
   const paradigms = word.partOfSpeech
     ? await db.paradigm.findMany({
         where: { languageId: id, partOfSpeech: word.partOfSpeech },
@@ -46,6 +61,32 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
           ← {word.language.name} lexicon
         </Link>
         <h1 className="font-ipa text-3xl font-semibold">{word.form}</h1>
+        {(source || descendants.length > 0) && (
+          <p className="text-sm opacity-80">
+            {source && (
+              <span className="mr-4">
+                From {source.language.name}{" "}
+                <Link href={`/languages/${source.languageId}/lexicon/${source.id}`} className="font-ipa underline">
+                  {source.form}
+                </Link>
+              </span>
+            )}
+            {descendants.length > 0 && (
+              <span>
+                Became{" "}
+                {descendants.map((d, i) => (
+                  <span key={d.id}>
+                    {i > 0 && ", "}
+                    {d.language.name}{" "}
+                    <Link href={`/languages/${d.languageId}/lexicon/${d.id}`} className="font-ipa underline">
+                      {d.form}
+                    </Link>
+                  </span>
+                ))}
+              </span>
+            )}
+          </p>
+        )}
       </header>
       <WordForm
         action={updateWord.bind(null, id, wordId)}

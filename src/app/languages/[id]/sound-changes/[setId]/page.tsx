@@ -3,8 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
 import { db } from "@/lib/db";
 import { languageClassSource } from "@/lib/language-classes";
-import { alphabetComparator, pronounce } from "@/lib/orthography";
-import { deleteSoundChangeSet, saveSoundChangeSet } from "../actions";
+import { alphabetComparator, pronouncePhrase } from "@/lib/orthography";
+import { createDaughterLanguage, deleteSoundChangeSet, saveSoundChangeSet } from "../actions";
 import { SoundChangeEditor } from "./sound-change-editor";
 
 export default async function SoundChangeSetPage({ params }: PageProps<"/languages/[id]/sound-changes/[setId]">) {
@@ -29,7 +29,12 @@ export default async function SoundChangeSetPage({ params }: PageProps<"/languag
   const compare = alphabetComparator(spelling);
   const words = rows
     .sort((a, b) => compare(a.form, b.form))
-    .map((w) => ({ id: w.id, form: w.form, gloss: w.gloss, ipa: w.pronunciation ?? pronounce(w.form, spelling) }));
+    .map((w) => ({
+      id: w.id,
+      form: w.form,
+      gloss: w.gloss,
+      ipa: w.pronunciation ?? pronouncePhrase(w.form, spelling),
+    }));
 
   return (
     <div className="space-y-6">
@@ -45,6 +50,7 @@ export default async function SoundChangeSetPage({ params }: PageProps<"/languag
         words={words}
         save={saveSoundChangeSet.bind(null, id, set.id)}
         remove={deleteSoundChangeSet.bind(null, id, set.id)}
+        makeDaughter={createDaughterLanguage.bind(null, id, set.id)}
       />
     </div>
   );

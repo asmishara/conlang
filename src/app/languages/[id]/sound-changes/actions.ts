@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { currentUserId } from "@/auth";
+import { planDaughter } from "@/lib/daughter";
 import { db } from "@/lib/db";
+import { languageClassSource } from "@/lib/language-classes";
+import { compileSoundChanges, inventoryClasses } from "@/lib/sound-changes";
 
 export type CreateState = { error?: string };
 export type SaveResult = { ok: true } | { ok: false; error: string };
@@ -53,4 +56,58 @@ export async function deleteSoundChangeSet(languageId: string, setId: string) {
   await db.soundChangeSet.deleteMany({ where: { id: setId, languageId } });
   revalidatePath(`/languages/${languageId}`, "layout");
   redirect(`/languages/${languageId}/sound-changes`);
+}
+
+/**
+ * Makes a new language from this one's words run through the saved rules.
+ * The daughter starts private, with its own inventory and lexicon; each
+ * word links back to the word it came from.
+ */
+export async function createDaughterLanguage(
+  languageId: string,
+  setId: string,
+  _prev: CreateState,
+  formData: FormData,
+): Promise<CreateState> {
+  const userId = await currentUserId();
+  if (!userId) return { error: "You can't edit this language. Try signing in again." };
+  const set = await db.soundChangeSet.findFirst({
+    where: { id: setId, languageId, language: { ownerId: userId } },
+    include: { language: { select: { name: true } } },
+  });
+  if (!set) return { error: "This rule set no longer exists." };
+  const name = z
+    .string()
+    .trim()
+    .min(1, "Give the new language a name")
+    .max(100, "Names can be at most 100 characters")
+    .safeParse(formData.get("name") ?? "");
+  if (!name.success) return { error: name.error.issues[0].message };
+
+  const [{ phonemes, categories }, words] = await Promise.all([
+    languageClassSource(languageId),
+    db.word.findMany({
+      where: { languageId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, form: true, pronunciation: true, gloss: true, partOfSpeech: true, tags: true },
+    }),
+  ]);
+  const compiled = compileSoundChanges(
+    set.rules,
+    inventoryClasses(phonemes, categories),
+    phonemes.map((p) => p.ipa),
+  );
+  const plan = planDaughter(set.language.name, phonemes, words, compiled);
+
+  const daughter = await db.$transaction(async (tx) => {
+    const language = await tx.language.create({
+      data: { ownerId: userId, name: name.data, parentId: languageId },
+    });
+    await tx.phoneme.createMany({ data: plan.phonemes.map((p) => ({ ...p, languageId: language.id })) });
+    await tx.word.createMany({ data: plan.words.map((w) => ({ ...w, languageId: language.id })) });
+    return language;
+  });
+  revalidatePath("/languages");
+  revalidatePath(`/languages/${languageId}`, "layout");
+  redirect(`/languages/${daughter.id}`);
 }

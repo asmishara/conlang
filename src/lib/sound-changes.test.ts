@@ -182,3 +182,11 @@ describe("countRules", () => {
     expect(countRules("# notes\nP = p t k\n\np > f\nP => B\n  t > d / V_V")).toBe(3);
   });
 });
+
+describe("compileSoundChanges inventory", () => {
+  it("treats inventory sounds as single sounds even outside any class", () => {
+    const vowelsOnly: SoundClassMap = new Map([["V", ["a", "i"]]]);
+    const compiled = compileSoundChanges("t > d", vowelsOnly, ["ts"]);
+    expect(evolve(compiled, "tsata").result).toBe("tsada");
+  });
+});
