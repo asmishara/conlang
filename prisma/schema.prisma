@@ -113,21 +113,22 @@ model Phoneme {
 
 /// A dictionary entry.
 model Word {
-  id            String   @id @default(cuid())
-  languageId    String
-  language      Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  id             String          @id @default(cuid())
+  languageId     String
+  language       Language        @relation(fields: [languageId], references: [id], onDelete: Cascade)
   /// The word as written in the language's spelling.
-  form          String
+  form           String
   /// IPA override. When null, the pronunciation is derived from the spelling.
-  pronunciation String?
-  partOfSpeech  String?
+  pronunciation  String?
+  partOfSpeech   String?
   /// Short meaning, e.g. "water" or "to run".
-  gloss         String
-  etymology     String?
-  notes         String?
-  tags          String[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  gloss          String
+  etymology      String?
+  notes          String?
+  tags           String[]
+  irregularForms IrregularForm[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([languageId])
 }
@@ -166,18 +167,35 @@ model GrammarPage {
 
 /// An inflection table for one part of speech, e.g. noun case × number.
 model Paradigm {
-  id           String   @id @default(cuid())
-  languageId   String
-  language     Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
-  name         String
+  id             String          @id @default(cuid())
+  languageId     String
+  language       Language        @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  name           String
   /// Words with this part of speech get these forms.
-  partOfSpeech String
+  partOfSpeech   String
   /// [{ name: "Case", values: ["nominative", "accusative"] }, ...], at most three.
-  dimensions   Json
+  dimensions     Json
   /// The rule for each cell, keyed by the JSON array of its values in dimension order.
-  rules        Json     @default("{}")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  rules          Json            @default("{}")
+  irregularForms IrregularForm[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([languageId, partOfSpeech])
+}
+
+/// One word's own form for a cell of a table, used instead of the cell's rule.
+model IrregularForm {
+  id         String   @id @default(cuid())
+  wordId     String
+  word       Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  paradigmId String
+  paradigm   Paradigm @relation(fields: [paradigmId], references: [id], onDelete: Cascade)
+  /// The cell, keyed like Paradigm.rules.
+  cell       String
+  /// The form, or "" when this word has no form for the cell.
+  form       String
+
+  @@unique([wordId, paradigmId, cell])
+  @@index([paradigmId])
 }

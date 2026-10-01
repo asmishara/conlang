@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cellKey, cellsOf, parseRule, type Dimension, type SoundClasses } from "./inflection";
+import { cellKey, cellsOf, parseRule, type Cell, type Dimension, type SoundClasses } from "./inflection";
 
 const label = (what: string) => z.string().trim().normalize("NFC").min(1, `${what} can't be empty`).max(40);
 
@@ -72,4 +72,42 @@ export function storedParadigm(row: { dimensions: unknown; rules: unknown }): {
     for (const [k, v] of Object.entries(row.rules)) if (typeof v === "string") rules[k] = v;
   }
   return { dimensions, rules };
+}
+
+const NO_FORM = new Set(["-", "–", "—"]);
+
+/**
+ * Cleans a word's irregular forms for saving: only cells the table has,
+ * a dash for "no form", and nothing for blank cells or forms the rule
+ * already gives. Returns null when the input isn't a map of short strings.
+ */
+export function cleanIrregularForms(input: unknown, cells: Cell[]): Record<string, string> | null {
+  const parsed = z.record(z.string(), z.string().max(100)).safeParse(input);
+  if (!parsed.success) return null;
+  const forms: Record<string, string> = {};
+  for (const c of cells) {
+    const key = cellKey(c.values);
+    const raw = parsed.data[key]?.trim().normalize("NFC");
+    if (!raw) continue;
+    const form = NO_FORM.has(raw) ? "" : raw;
+    if (form !== (c.regular ?? "")) forms[key] = form;
+  }
+  return forms;
+}
+
+/**
+ * Where a word's irregular forms go after a table is edited. `moves` maps
+ * each old cell key that still exists to its new key; forms in other cells
+ * are dropped. Without `moves`, forms stay in cells that still exist.
+ */
+export function moveIrregularForms<F extends { cell: string }>(
+  forms: F[],
+  dimensions: Dimension[],
+  moves?: Record<string, string>,
+): F[] {
+  const cells = new Set(cellsOf(dimensions).map(cellKey));
+  return forms.flatMap((f) => {
+    const cell = moves ? moves[f.cell] : f.cell;
+    return cell !== undefined && cells.has(cell) ? [{ ...f, cell }] : [];
+  });
 }

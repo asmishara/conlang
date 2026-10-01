@@ -177,18 +177,33 @@ export function applyRule(rule: Rule, word: string, classes: SoundClasses): stri
   return null;
 }
 
-export type Cell = { values: string[]; form: string | null; error?: string };
+export type Cell = {
+  values: string[];
+  /** The form, or null when the word has none for this cell. */
+  form: string | null;
+  /** What the cell's rule gives, which an irregular form replaces. */
+  regular: string | null;
+  irregular: boolean;
+  error?: string;
+};
 
-/** Fills in every cell of a paradigm for one word. */
+/**
+ * Fills in every cell of a paradigm for one word. `irregular` holds the
+ * word's own forms by cell key, where "" means it has no form there.
+ */
 export function inflect(
   word: string,
   paradigm: { dimensions: Dimension[]; rules: Record<string, string> },
   classes: SoundClasses,
+  irregular: Record<string, string> = {},
 ): Cell[] {
   return cellsOf(paradigm.dimensions).map((values) => {
-    const parsed = parseRule(paradigm.rules[cellKey(values)] ?? "", classes);
-    if ("error" in parsed) return { values, form: null, error: parsed.error };
-    return { values, form: applyRule(parsed.rule, word, classes) };
+    const key = cellKey(values);
+    const parsed = parseRule(paradigm.rules[key] ?? "", classes);
+    const regular = "error" in parsed ? null : applyRule(parsed.rule, word, classes);
+    const error = "error" in parsed ? parsed.error : undefined;
+    if (key in irregular) return { values, form: irregular[key] || null, regular, irregular: true, error };
+    return { values, form: regular, regular, irregular: false, error };
   });
 }
 
