@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { inflect } from "@/lib/inflection";
 import { languageClasses } from "@/lib/language-classes";
@@ -17,7 +18,7 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/lexicon/${wordId}`);
 
   const word = await db.word.findFirst({
-    where: { id: wordId, languageId: id, language: { ownerId: userId } },
+    where: { id: wordId, languageId: id, language: editableBy(userId) },
     include: {
       language: {
         select: {
@@ -34,12 +35,12 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
   const [source, descendants] = await Promise.all([
     word.sourceWordId
       ? db.word.findFirst({
-          where: { id: word.sourceWordId, language: { ownerId: userId } },
+          where: { id: word.sourceWordId, language: editableBy(userId) },
           select: { id: true, form: true, languageId: true, language: { select: { name: true } } },
         })
       : null,
     db.word.findMany({
-      where: { sourceWordId: wordId, language: { ownerId: userId } },
+      where: { sourceWordId: wordId, language: editableBy(userId) },
       orderBy: { createdAt: "asc" },
       select: { id: true, form: true, languageId: true, language: { select: { name: true } } },
     }),

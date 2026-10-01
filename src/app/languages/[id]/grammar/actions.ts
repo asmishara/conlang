@@ -3,18 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { currentUserId } from "@/auth";
+import { canEdit } from "@/lib/access";
 import { db } from "@/lib/db";
 import { starterSections, subtreeIds } from "@/lib/grammar";
 
 export type PageFormState = { error?: string; savedAt?: number };
-
-async function ownsLanguage(languageId: string): Promise<boolean> {
-  const userId = await currentUserId();
-  if (!userId) return false;
-  const language = await db.language.findFirst({ where: { id: languageId, ownerId: userId }, select: { id: true } });
-  return language !== null;
-}
 
 function refresh(languageId: string) {
   revalidatePath(`/languages/${languageId}`, "layout");
@@ -30,7 +23,7 @@ async function nextPosition(languageId: string, parentId: string | null) {
 }
 
 export async function createPage(languageId: string, parentId: string | null) {
-  if (!(await ownsLanguage(languageId))) redirect("/signin");
+  if (!(await canEdit(languageId))) redirect("/signin");
   if (parentId) {
     const parent = await db.grammarPage.findFirst({ where: { id: parentId, languageId }, select: { id: true } });
     if (!parent) parentId = null;
@@ -43,7 +36,7 @@ export async function createPage(languageId: string, parentId: string | null) {
 }
 
 export async function createStarterPages(languageId: string) {
-  if (!(await ownsLanguage(languageId))) redirect("/signin");
+  if (!(await canEdit(languageId))) redirect("/signin");
   const existing = await db.grammarPage.count({ where: { languageId } });
   if (existing === 0) {
     await db.$transaction(async (tx) => {
@@ -75,7 +68,7 @@ export async function savePage(
   _prev: PageFormState,
   formData: FormData,
 ): Promise<PageFormState> {
-  if (!(await ownsLanguage(languageId))) return { error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { error: "You can't edit this language. Try signing in again." };
   const parsed = pageInput.safeParse({
     title: formData.get("title") ?? "",
     body: formData.get("body") ?? "",
@@ -110,7 +103,7 @@ export async function savePage(
 }
 
 export async function movePage(languageId: string, pageId: string, direction: "up" | "down") {
-  if (!(await ownsLanguage(languageId))) return;
+  if (!(await canEdit(languageId))) return;
   const page = await db.grammarPage.findFirst({ where: { id: pageId, languageId } });
   if (!page) return;
   const siblings = await db.grammarPage.findMany({
@@ -127,7 +120,7 @@ export async function movePage(languageId: string, pageId: string, direction: "u
 }
 
 export async function deletePage(languageId: string, pageId: string) {
-  if (await ownsLanguage(languageId)) {
+  if (await canEdit(languageId)) {
     // Subpages are removed with it (cascade).
     await db.grammarPage.deleteMany({ where: { id: pageId, languageId } });
     refresh(languageId);

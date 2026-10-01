@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { storedParadigm } from "@/lib/paradigm-input";
 import { partsOfSpeech } from "@/lib/parts-of-speech";
@@ -13,7 +14,7 @@ export default async function InflectionPage({ params }: PageProps<"/languages/[
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/inflection`);
 
   const language = await db.language.findFirst({
-    where: { id, ownerId: userId },
+    where: { id, ...editableBy(userId) },
     select: { id: true, name: true, paradigms: { orderBy: { createdAt: "asc" } } },
   });
   if (!language) notFound();

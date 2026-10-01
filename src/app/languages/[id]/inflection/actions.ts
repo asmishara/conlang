@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { currentUserId } from "@/auth";
+import { canEdit, editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { cellKey, inflect } from "@/lib/inflection";
@@ -19,19 +20,12 @@ import {
 export type CreateState = { error?: string };
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
-async function ownsLanguage(languageId: string): Promise<boolean> {
-  const userId = await currentUserId();
-  if (!userId) return false;
-  const language = await db.language.findFirst({ where: { id: languageId, ownerId: userId }, select: { id: true } });
-  return language !== null;
-}
-
 function refresh(languageId: string) {
   revalidatePath(`/languages/${languageId}`, "layout");
 }
 
 export async function createParadigm(languageId: string, _prev: CreateState, formData: FormData): Promise<CreateState> {
-  if (!(await ownsLanguage(languageId))) return { error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { error: "You can't edit this language. Try signing in again." };
   const name = String(formData.get("name") ?? "").trim();
   const pos = partOfSpeechInput.safeParse(formData.get("partOfSpeech") ?? "");
   if (!pos.success) return { error: pos.error.issues[0].message };
@@ -63,7 +57,7 @@ export async function saveParadigm(
   input: unknown,
   moves?: unknown,
 ): Promise<SaveResult> {
-  if (!(await ownsLanguage(languageId))) return { ok: false, error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { ok: false, error: "You can't edit this language. Try signing in again." };
   const parsed = paradigmInput.safeParse(input);
   const parsedMoves = movesInput.safeParse(moves);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -98,7 +92,7 @@ export async function saveIrregularForms(
 ): Promise<SaveResult> {
   const userId = await currentUserId();
   if (!userId) return { ok: false, error: "You can't edit this language. Try signing in again." };
-  const owned = { languageId, language: { ownerId: userId } };
+  const owned = { languageId, language: editableBy(userId) };
   const [word, paradigm] = await Promise.all([
     db.word.findFirst({ where: { id: wordId, ...owned }, select: { form: true } }),
     db.paradigm.findFirst({ where: { id: paradigmId, ...owned } }),
@@ -120,7 +114,7 @@ export async function saveIrregularForms(
 }
 
 export async function deleteParadigm(languageId: string, paradigmId: string) {
-  if (!(await ownsLanguage(languageId))) redirect("/signin");
+  if (!(await canEdit(languageId))) redirect("/signin");
   await db.paradigm.deleteMany({ where: { id: paradigmId, languageId } });
   refresh(languageId);
   redirect(`/languages/${languageId}/inflection`);

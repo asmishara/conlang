@@ -1,4 +1,5 @@
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { prepareWords } from "@/lib/lexicon";
 import { lexiconToCsv } from "@/lib/lexicon-csv";
@@ -9,7 +10,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/languages/[id]/lexi
   if (!userId) return new Response("Sign in to export.", { status: 401 });
 
   const language = await db.language.findFirst({
-    where: { id, ownerId: userId },
+    where: { id, ...editableBy(userId) },
     select: {
       name: true,
       phonemes: { orderBy: { position: "asc" }, select: { ipa: true, spelling: true } },

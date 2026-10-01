@@ -2,24 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { currentUserId } from "@/auth";
+import { canEdit } from "@/lib/access";
 import { db } from "@/lib/db";
 import { parseLexiconCsv } from "@/lib/lexicon-csv";
 import { parseWordForm } from "@/lib/word-input";
 
 export type WordFormState = { error?: string; added?: string; count?: number };
 export type ImportState = { error?: string; imported?: number; problems?: string[] };
-
-/** Returns true when the signed-in user owns the language. */
-async function ownsLanguage(languageId: string): Promise<boolean> {
-  const userId = await currentUserId();
-  if (!userId) return false;
-  const language = await db.language.findFirst({
-    where: { id: languageId, ownerId: userId },
-    select: { id: true },
-  });
-  return language !== null;
-}
 
 function touch(languageId: string) {
   revalidatePath(`/languages/${languageId}`);
@@ -32,7 +21,7 @@ export async function createWord(
   prev: WordFormState,
   formData: FormData,
 ): Promise<WordFormState> {
-  if (!(await ownsLanguage(languageId))) return { error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { error: "You can't edit this language. Try signing in again." };
   const parsed = parseWordForm(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid word", count: prev.count };
 
@@ -47,7 +36,7 @@ export async function updateWord(
   _prev: WordFormState,
   formData: FormData,
 ): Promise<WordFormState> {
-  if (!(await ownsLanguage(languageId))) return { error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { error: "You can't edit this language. Try signing in again." };
   const parsed = parseWordForm(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid word" };
 
@@ -58,7 +47,7 @@ export async function updateWord(
 }
 
 export async function deleteWord(languageId: string, wordId: string) {
-  if (await ownsLanguage(languageId)) {
+  if (await canEdit(languageId)) {
     await db.word.deleteMany({ where: { id: wordId, languageId } });
     await touch(languageId);
   }
@@ -72,7 +61,7 @@ export async function importWords(
   _prev: ImportState,
   formData: FormData,
 ): Promise<ImportState> {
-  if (!(await ownsLanguage(languageId))) return { error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { error: "You can't edit this language. Try signing in again." };
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose a CSV file to import." };
   if (file.size > MAX_IMPORT_BYTES) return { error: "That file is too large. Split it into files under 900 KB." };

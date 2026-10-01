@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { defaultSettings, type Category, type GeneratorSettings } from "@/lib/generator";
 import { pronounce } from "@/lib/orthography";
@@ -12,7 +13,7 @@ export default async function GeneratorPage({ params }: PageProps<"/languages/[i
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/generator`);
 
   const language = await db.language.findFirst({
-    where: { id, ownerId: userId },
+    where: { id, ...editableBy(userId) },
     select: {
       id: true,
       name: true,

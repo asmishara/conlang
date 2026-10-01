@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { languageClassSource } from "@/lib/language-classes";
 import { alphabetComparator, pronouncePhrase } from "@/lib/orthography";
@@ -13,7 +14,7 @@ export default async function SoundChangeSetPage({ params }: PageProps<"/languag
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/sound-changes/${setId}`);
 
   const set = await db.soundChangeSet.findFirst({
-    where: { id: setId, languageId: id, language: { ownerId: userId } },
+    where: { id: setId, languageId: id, language: editableBy(userId) },
     include: { language: { select: { name: true } } },
   });
   if (!set) notFound();
