@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { PageNode } from "@/lib/grammar";
 
-export function GrammarNav({ languageId, tree }: { languageId: string; tree: PageNode[] }) {
+/** The grammar page tree. `base` is the contents page; pages live under it. */
+export function GrammarNav({ base, tree }: { base: string; tree: PageNode[] }) {
   const pathname = usePathname();
-  const base = `/languages/${languageId}/grammar`;
   return (
     <nav aria-label="Grammar pages" className="text-sm">
       <Link

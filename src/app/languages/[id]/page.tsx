@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
 import { db } from "@/lib/db";
-import { deleteLanguage } from "../actions";
+import { deleteLanguage, setVisibility } from "../actions";
+import { CopyLinkButton } from "./copy-link";
 
 export default async function LanguagePage({ params }: PageProps<"/languages/[id]">) {
   const { id } = await params;
@@ -80,6 +81,41 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
           </p>
         </Link>
       </div>
+
+      <section className="space-y-3 rounded-lg border border-black/10 p-4 dark:border-white/15">
+        <h2 className="font-semibold">Sharing</h2>
+        {language.visibility === "PRIVATE" ? (
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <p className="opacity-80">Only you can see this language.</p>
+            <form action={setVisibility.bind(null, language.id, "UNLISTED")}>
+              <button type="submit" className="rounded-md bg-foreground px-3 py-1.5 text-background">
+                Share with a link
+              </button>
+            </form>
+            <Link href={`/share/${language.id}`} className="underline opacity-70">
+              Preview
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2 text-sm">
+            <p className="opacity-80">
+              Anyone with the link can read this language&apos;s sounds, dictionary and grammar, but only you can
+              change them.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link href={`/share/${language.id}`} className="font-mono underline">
+                /share/{language.id}
+              </Link>
+              <CopyLinkButton path={`/share/${language.id}`} />
+              <form action={setVisibility.bind(null, language.id, "PRIVATE")}>
+                <button type="submit" className="underline opacity-70 hover:opacity-100">
+                  Make private
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </section>
 
       <form action={deleteLanguage.bind(null, language.id)}>
         <button type="submit" className="text-sm text-red-600 underline">

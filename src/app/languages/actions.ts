@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { currentUserId } from "@/auth";
 import { db } from "@/lib/db";
 import { parseLanguageForm } from "@/lib/language-input";
+import { sharingChoices } from "@/lib/visibility";
 
 export type FormState = { error?: string };
 
@@ -33,4 +34,14 @@ export async function deleteLanguage(id: string) {
   await db.language.deleteMany({ where: { id, ownerId: userId } });
   revalidatePath("/languages");
   redirect("/languages");
+}
+
+export async function setVisibility(id: string, visibility: (typeof sharingChoices)[number]) {
+  const userId = await currentUserId();
+  if (!userId) redirect("/signin");
+  if (!sharingChoices.includes(visibility)) return;
+
+  await db.language.updateMany({ where: { id, ownerId: userId }, data: { visibility } });
+  revalidatePath(`/languages/${id}`);
+  revalidatePath(`/share/${id}`, "layout");
 }

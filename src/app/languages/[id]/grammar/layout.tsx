@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { GrammarNav } from "@/components/grammar-nav";
 import { db } from "@/lib/db";
 import { buildTree } from "@/lib/grammar";
 import { createPage } from "./actions";
-import { GrammarNav } from "./grammar-nav";
 
 export default async function GrammarLayout({ children, params }: LayoutProps<"/languages/[id]/grammar">) {
   const { id } = await params;
@@ -31,7 +31,7 @@ export default async function GrammarLayout({ children, params }: LayoutProps<"/
       </header>
       <div className="grid gap-8 md:grid-cols-[13rem_minmax(0,1fr)]">
         <aside className="space-y-3 md:sticky md:top-4 md:self-start">
-          <GrammarNav languageId={language.id} tree={buildTree(language.grammarPages)} />
+          <GrammarNav base={`/languages/${language.id}/grammar`} tree={buildTree(language.grammarPages)} />
           <form action={createPage.bind(null, language.id, null)}>
             <button type="submit" className="px-2 text-sm underline">
               + New page
