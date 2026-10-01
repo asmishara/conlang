@@ -10,7 +10,7 @@ describe("inventoryInput", () => {
   it("rejects duplicate sounds, including differently normalized ones", () => {
     const result = inventoryInput.safeParse([
       { ipa: "â", kind: "VOWEL", spelling: "" },
-      { ipa: "â", kind: "VOWEL", spelling: "" },
+      { ipa: "a\u0302", kind: "VOWEL", spelling: "" },
     ]);
     expect(result.success).toBe(false);
   });

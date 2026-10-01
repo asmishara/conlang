@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { deleteLanguage } from "../actions";
 
 const sections = [
-  { title: "Lexicon", note: "Your dictionary (coming in M1)." },
   { title: "Word generator", note: "Generate words that fit your phonology (coming in M1)." },
   { title: "Grammar", note: "Grammar pages and inflection tables (coming in M2)." },
 ];
@@ -17,7 +16,7 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
 
   const language = await db.language.findFirst({
     where: { id, ownerId: userId },
-    include: { _count: { select: { phonemes: true } } },
+    include: { _count: { select: { phonemes: true, words: true } } },
   });
   if (!language) notFound();
 
@@ -43,6 +42,17 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
             {language._count.phonemes === 0
               ? "Choose your sounds and how they are spelled."
               : `${language._count.phonemes} sound${language._count.phonemes === 1 ? "" : "s"}`}
+          </p>
+        </Link>
+        <Link
+          href={`/languages/${language.id}/lexicon`}
+          className="rounded-lg border border-black/10 p-4 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <h2 className="font-semibold">Lexicon</h2>
+          <p className="text-sm opacity-70">
+            {language._count.words === 0
+              ? "Start your dictionary."
+              : `${language._count.words} word${language._count.words === 1 ? "" : "s"}`}
           </p>
         </Link>
         {sections.map((s) => (

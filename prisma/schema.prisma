@@ -81,6 +81,7 @@ model Language {
   description String?
   visibility  Visibility @default(PRIVATE)
   phonemes    Phoneme[]
+  words       Word[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -105,4 +106,25 @@ model Phoneme {
 
   @@unique([languageId, ipa])
   @@index([languageId, position])
+}
+
+/// A dictionary entry.
+model Word {
+  id            String   @id @default(cuid())
+  languageId    String
+  language      Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  /// The word as written in the language's spelling.
+  form          String
+  /// IPA override. When null, the pronunciation is derived from the spelling.
+  pronunciation String?
+  partOfSpeech  String?
+  /// Short meaning, e.g. "water" or "to run".
+  gloss         String
+  etymology     String?
+  notes         String?
+  tags          String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([languageId])
 }
