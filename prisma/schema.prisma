@@ -80,8 +80,29 @@ model Language {
   autonym     String?
   description String?
   visibility  Visibility @default(PRIVATE)
+  phonemes    Phoneme[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   @@index([ownerId])
+}
+
+enum PhonemeKind {
+  CONSONANT
+  VOWEL
+}
+
+/// One sound in a language's inventory, with how it is spelled.
+model Phoneme {
+  id         String      @id @default(cuid())
+  languageId String
+  language   Language    @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  ipa        String
+  kind       PhonemeKind
+  spelling   String
+  /// Order within the inventory; also the default alphabet order.
+  position   Int
+
+  @@unique([languageId, ipa])
+  @@index([languageId, position])
 }
