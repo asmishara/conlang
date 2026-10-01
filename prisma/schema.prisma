@@ -73,18 +73,19 @@ enum Visibility {
 }
 
 model Language {
-  id          String         @id @default(cuid())
-  ownerId     String
-  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name        String
-  autonym     String?
-  description String?
-  visibility  Visibility     @default(PRIVATE)
-  phonemes    Phoneme[]
-  words       Word[]
-  generator   WordGenerator?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id           String         @id @default(cuid())
+  ownerId      String
+  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  autonym      String?
+  description  String?
+  visibility   Visibility     @default(PRIVATE)
+  phonemes     Phoneme[]
+  words        Word[]
+  generator    WordGenerator?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  grammarPages GrammarPage[]
 
   @@index([ownerId])
 }
@@ -142,4 +143,22 @@ model WordGenerator {
   dropoff      Boolean
   forbidden    String[]
   updatedAt    DateTime @updatedAt
+}
+
+/// A page of grammar documentation. Pages nest under a parent page.
+model GrammarPage {
+  id         String        @id @default(cuid())
+  languageId String
+  language   Language      @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     GrammarPage?  @relation("GrammarTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children   GrammarPage[] @relation("GrammarTree")
+  title      String
+  /// Markdown, with ```gloss blocks for interlinear examples.
+  body       String        @default("")
+  position   Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([languageId, parentId, position])
 }

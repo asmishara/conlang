@@ -4,10 +4,6 @@ import { currentUserId } from "@/auth";
 import { db } from "@/lib/db";
 import { deleteLanguage } from "../actions";
 
-const sections = [
-  { title: "Grammar", note: "Grammar pages and inflection tables (coming in M2)." },
-];
-
 export default async function LanguagePage({ params }: PageProps<"/languages/[id]">) {
   const { id } = await params;
   const userId = await currentUserId();
@@ -15,7 +11,7 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
 
   const language = await db.language.findFirst({
     where: { id, ownerId: userId },
-    include: { _count: { select: { phonemes: true, words: true } } },
+    include: { _count: { select: { phonemes: true, words: true, grammarPages: true } } },
   });
   if (!language) notFound();
 
@@ -61,12 +57,17 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
           <h2 className="font-semibold">Word generator</h2>
           <p className="text-sm opacity-70">Generate words that fit your phonology.</p>
         </Link>
-        {sections.map((s) => (
-          <div key={s.title} className="rounded-lg border border-black/10 p-4 dark:border-white/15">
-            <h2 className="font-semibold">{s.title}</h2>
-            <p className="text-sm opacity-70">{s.note}</p>
-          </div>
-        ))}
+        <Link
+          href={`/languages/${language.id}/grammar`}
+          className="rounded-lg border border-black/10 p-4 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <h2 className="font-semibold">Grammar</h2>
+          <p className="text-sm opacity-70">
+            {language._count.grammarPages === 0
+              ? "Document your grammar with glossed examples."
+              : `${language._count.grammarPages} page${language._count.grammarPages === 1 ? "" : "s"}`}
+          </p>
+        </Link>
       </div>
 
       <form action={deleteLanguage.bind(null, language.id)}>

@@ -36,7 +36,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <header className="border-b border-black/10 dark:border-white/15">
-          <nav className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
+          <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <Link href="/" className="font-semibold">
               Conlang Workshop
             </Link>
@@ -61,7 +61,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             )}
           </nav>
         </header>
-        <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
       </body>
     </html>
   );
