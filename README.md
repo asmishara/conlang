@@ -1,7 +1,7 @@
 # Conlang Workshop
 
 A website for creating and managing constructed languages: sound inventories,
-lexicons, word generation and grammar notes.
+lexicons, word generation, inflection tables and grammar notes.
 
 Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma (Postgres)
 and Auth.js.
