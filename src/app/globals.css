@@ -25,3 +25,32 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* Grammar pages: readable defaults for rendered Markdown. */
+.grammar-prose {
+  counter-reset: example;
+  line-height: 1.65;
+}
+.grammar-prose > * + * {
+  margin-top: 0.85em;
+}
+.grammar-prose h1 { font-size: 1.6rem; font-weight: 600; margin-top: 1.4em; }
+.grammar-prose h2 { font-size: 1.3rem; font-weight: 600; margin-top: 1.3em; }
+.grammar-prose h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.2em; }
+.grammar-prose ul { list-style: disc; padding-left: 1.5rem; }
+.grammar-prose ol { list-style: decimal; padding-left: 1.5rem; }
+.grammar-prose a { text-decoration: underline; }
+.grammar-prose blockquote { border-left: 3px solid color-mix(in srgb, currentColor 25%, transparent); padding-left: 1rem; opacity: 0.85; }
+.grammar-prose code { font-family: var(--font-mono); font-size: 0.9em; padding: 0.1em 0.3em; border-radius: 0.25rem; background: color-mix(in srgb, currentColor 8%, transparent); }
+.grammar-prose pre { overflow-x: auto; padding: 0.75rem 1rem; border-radius: 0.5rem; background: color-mix(in srgb, currentColor 6%, transparent); }
+.grammar-prose pre code { padding: 0; background: none; }
+.grammar-prose table { border-collapse: collapse; font-size: 0.95em; }
+.grammar-prose th, .grammar-prose td { border: 1px solid color-mix(in srgb, currentColor 20%, transparent); padding: 0.3rem 0.6rem; text-align: left; }
+.grammar-prose th { font-weight: 600; }
+.grammar-prose hr { border-color: color-mix(in srgb, currentColor 15%, transparent); }
+
+/* Numbered linguistic examples: (1), (2), ... */
+.gloss-example { counter-increment: example; }
+.gloss-example::before { content: "(" counter(example) ")"; min-width: 2.25rem; }
+
+.small-caps { font-variant: small-caps; letter-spacing: 0.02em; }
