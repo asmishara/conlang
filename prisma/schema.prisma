@@ -73,17 +73,18 @@ enum Visibility {
 }
 
 model Language {
-  id          String     @id @default(cuid())
+  id          String         @id @default(cuid())
   ownerId     String
-  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name        String
   autonym     String?
   description String?
-  visibility  Visibility @default(PRIVATE)
+  visibility  Visibility     @default(PRIVATE)
   phonemes    Phoneme[]
   words       Word[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  generator   WordGenerator?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@index([ownerId])
 }
@@ -127,4 +128,18 @@ model Word {
   updatedAt     DateTime @updatedAt
 
   @@index([languageId])
+}
+
+/// Saved word generator settings for a language.
+model WordGenerator {
+  languageId   String   @id
+  language     Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  /// [{ label: "C", members: ["p", "t"] }, ...]
+  categories   Json
+  patterns     String[]
+  minSyllables Int
+  maxSyllables Int
+  dropoff      Boolean
+  forbidden    String[]
+  updatedAt    DateTime @updatedAt
 }
