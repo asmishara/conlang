@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { cellKey, soundClasses } from "./inflection";
-import { paradigmInput, ruleProblems, storedParadigm } from "./paradigm-input";
+import { cellKey, inflect, soundClasses } from "./inflection";
+import {
+  cleanIrregularForms,
+  moveIrregularForms,
+  paradigmInput,
+  ruleProblems,
+  storedParadigm,
+} from "./paradigm-input";
 
 const dimensions = [
   { name: "Number", values: ["sg", "pl"] },
@@ -46,5 +52,61 @@ describe("storedParadigm", () => {
       }),
     ).toEqual({ dimensions: [{ name: "Number", values: ["sg"] }], rules: { a: "~" } });
     expect(storedParadigm({ dimensions: null, rules: [] })).toEqual({ dimensions: [], rules: {} });
+  });
+});
+
+describe("cleanIrregularForms", () => {
+  const classes = soundClasses([{ ipa: "a", kind: "VOWEL", spelling: "a" }]);
+  const cells = inflect(
+    "tana",
+    { dimensions: [{ name: "Number", values: ["sg", "pl", "du"] }], rules: { [cellKey(["sg"])]: "~", [cellKey(["pl"])]: "~i" } },
+    classes,
+  );
+
+  it("keeps real changes, reads a dash as no form, and drops the rest", () => {
+    expect(
+      cleanIrregularForms(
+        { [cellKey(["sg"])]: " tana ", [cellKey(["pl"])]: "—", [cellKey(["du"])]: "", [cellKey(["xx"])]: "x" },
+        cells,
+      ),
+    ).toEqual({ [cellKey(["pl"])]: "" });
+    expect(cleanIrregularForms({ [cellKey(["du"])]: "tanau", [cellKey(["sg"])]: "tan" }, cells)).toEqual({
+      [cellKey(["sg"])]: "tan",
+      [cellKey(["du"])]: "tanau",
+    });
+    // A dash where the rule gives no form anyway isn't irregular.
+    expect(cleanIrregularForms({ [cellKey(["du"])]: "-" }, cells)).toEqual({});
+  });
+
+  it("rejects malformed input", () => {
+    expect(cleanIrregularForms("nope", cells)).toBeNull();
+    expect(cleanIrregularForms({ [cellKey(["sg"])]: "x".repeat(101) }, cells)).toBeNull();
+  });
+});
+
+describe("moveIrregularForms", () => {
+  const forms = [
+    { wordId: "w", cell: cellKey(["sg", "nom"]) },
+    { wordId: "w", cell: cellKey(["pl", "nom"]) },
+    { wordId: "w", cell: cellKey(["pl", "acc"]) },
+  ];
+
+  it("follows renamed cells and drops removed ones", () => {
+    const after = [
+      { name: "Number", values: ["singular", "plural"] },
+      { name: "Case", values: ["nom"] },
+    ];
+    const moves = { [cellKey(["sg", "nom"])]: cellKey(["singular", "nom"]), [cellKey(["pl", "nom"])]: cellKey(["plural", "nom"]) };
+    expect(moveIrregularForms(forms, after, moves).map((f) => f.cell)).toEqual([
+      cellKey(["singular", "nom"]),
+      cellKey(["plural", "nom"]),
+    ]);
+  });
+
+  it("keeps forms in cells that still exist when there are no moves", () => {
+    expect(moveIrregularForms(forms, [dimensions[0], { name: "Case", values: ["nom"] }]).map((f) => f.cell)).toEqual([
+      cellKey(["sg", "nom"]),
+      cellKey(["pl", "nom"]),
+    ]);
   });
 });

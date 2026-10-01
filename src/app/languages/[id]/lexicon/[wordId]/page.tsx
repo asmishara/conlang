@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
-import { ParadigmGrid } from "@/components/paradigm-grid";
 import { db } from "@/lib/db";
-import { cellKey, inflect } from "@/lib/inflection";
+import { inflect } from "@/lib/inflection";
 import { languageClasses } from "@/lib/language-classes";
 import { storedParadigm } from "@/lib/paradigm-input";
 import { phonotacticsOf } from "@/lib/phonotactics";
+import { saveIrregularForms } from "../../inflection/actions";
 import { deleteWord, updateWord } from "../actions";
 import { WordForm } from "../word-form";
+import { WordForms } from "./word-forms";
 
 export default async function EditWordPage({ params }: PageProps<"/languages/[id]/lexicon/[wordId]">) {
   const { id, wordId } = await params;
@@ -33,6 +34,7 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
     ? await db.paradigm.findMany({
         where: { languageId: id, partOfSpeech: word.partOfSpeech },
         orderBy: { createdAt: "asc" },
+        include: { irregularForms: { where: { wordId }, select: { cell: true, form: true } } },
       })
     : [];
   const classes = paradigms.length > 0 ? await languageClasses(id) : null;
@@ -67,30 +69,19 @@ export default async function EditWordPage({ params }: PageProps<"/languages/[id
           ) : (
             paradigms.map((p) => {
               const paradigm = storedParadigm(p);
-              const cells = new Map(inflect(word.form, paradigm, classes!).map((c) => [cellKey(c.values), c]));
+              const irregular = Object.fromEntries(p.irregularForms.map((f) => [f.cell, f.form]));
               return (
-                <div key={p.id} className="space-y-2">
-                  <h3 className="text-sm">
-                    <Link href={`/languages/${id}/inflection/${p.id}`} className="underline-offset-2 hover:underline">
-                      {p.name}
-                    </Link>
-                  </h3>
-                  <ParadigmGrid
-                    axes={paradigm.dimensions.map((d) => ({
-                      name: d.name,
-                      values: d.values.map((v) => ({ key: v, label: v })),
-                    }))}
-                    cell={(values) => {
-                      const c = cells.get(cellKey(values));
-                      if (c?.error) return <span title={c.error}>?</span>;
-                      return c?.form ? (
-                        <span className="font-ipa text-base">{c.form}</span>
-                      ) : (
-                        <span className="opacity-40">—</span>
-                      );
-                    }}
-                  />
-                </div>
+                <WordForms
+                  key={p.id}
+                  name={p.name}
+                  href={`/languages/${id}/inflection/${p.id}`}
+                  axes={paradigm.dimensions.map((d) => ({
+                    name: d.name,
+                    values: d.values.map((v) => ({ key: v, label: v })),
+                  }))}
+                  cells={inflect(word.form, paradigm, classes!, irregular)}
+                  save={saveIrregularForms.bind(null, id, wordId, p.id)}
+                />
               );
             })
           )}

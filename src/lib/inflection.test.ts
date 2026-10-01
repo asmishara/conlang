@@ -110,6 +110,22 @@ describe("inflect", () => {
     expect(cells.map((c) => c.form)).toEqual(["tana", "tanai", null, null]);
     expect(cells[2].error).toBe("There's no sound class Q");
   });
+
+  it("uses a word's irregular forms, including having none", () => {
+    const cells = inflect(
+      "tana",
+      {
+        dimensions: [{ name: "Number", values: ["sg", "pl"] }],
+        rules: { [cellKey(["sg"])]: "~", [cellKey(["pl"])]: "~i" },
+      },
+      classes,
+      { [cellKey(["sg"])]: "tan", [cellKey(["pl"])]: "" },
+    );
+    expect(cells.map((c) => [c.form, c.regular, c.irregular])).toEqual([
+      ["tan", "tana", true],
+      [null, "tanai", true],
+    ]);
+  });
 });
 
 describe("shapeProblems", () => {

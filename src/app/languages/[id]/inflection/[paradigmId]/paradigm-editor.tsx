@@ -23,10 +23,30 @@ type Draft = {
   dimensions: DraftDimension[];
   /** Rules keyed by the JSON array of value ids, so renaming a value keeps its rules. */
   rules: Record<string, string>;
+  /** The saved cell key each cell came from, so words' irregular forms can follow it. */
+  origins: Record<string, string>;
 };
 type Initial = { name: string; partOfSpeech: string; dimensions: Dimension[]; rules: Record<string, string> };
 
 const newId = () => Math.random().toString(36).slice(2);
+
+/** Re-keys a map of id-keyed cells, dropping those `move` returns null for. */
+function remap<T>(cells: Record<string, T>, move: (ids: string[]) => string[] | null): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [key, value] of Object.entries(cells)) {
+    const ids = move(JSON.parse(key));
+    if (ids) out[JSON.stringify(ids)] = value;
+  }
+  return out;
+}
+
+function idCells(d: Draft): string[][] {
+  return cellsOf(d.dimensions.map((dim) => ({ name: dim.id, values: dim.values.map((v) => v.id) })));
+}
+
+function labelsOf(d: Draft, ids: string[]): string[] {
+  return ids.map((id, i) => d.dimensions[i].values.find((v) => v.id === id)!.label.trim().normalize("NFC"));
+}
 
 function toDraft(p: Initial): Draft {
   const dimensions = p.dimensions.map((d, i) => ({
@@ -35,12 +55,14 @@ function toDraft(p: Initial): Draft {
     values: d.values.map((label, j) => ({ id: `d${i}v${j}`, label })),
   }));
   const rules: Record<string, string> = {};
+  const origins: Record<string, string> = {};
   for (const labels of cellsOf(p.dimensions)) {
     const rule = p.rules[cellKey(labels)];
-    const ids = labels.map((label, i) => dimensions[i].values.find((v) => v.label === label)!.id);
-    if (rule) rules[JSON.stringify(ids)] = rule;
+    const ids = JSON.stringify(labels.map((label, i) => dimensions[i].values.find((v) => v.label === label)!.id));
+    if (rule) rules[ids] = rule;
+    origins[ids] = cellKey(labels);
   }
-  return { name: p.name, partOfSpeech: p.partOfSpeech, dimensions, rules };
+  return { name: p.name, partOfSpeech: p.partOfSpeech, dimensions, rules, origins };
 }
 
 /** The draft as the server stores it, keyed by value labels. */
@@ -50,13 +72,24 @@ function toInput(d: Draft): Initial {
     values: dim.values.map((v) => v.label.trim().normalize("NFC")),
   }));
   const rules: Record<string, string> = {};
-  const idCells = cellsOf(d.dimensions.map((dim) => ({ name: dim.id, values: dim.values.map((v) => v.id) })));
-  for (const ids of idCells) {
+  for (const ids of idCells(d)) {
     const rule = d.rules[JSON.stringify(ids)]?.trim();
-    const labels = ids.map((id, i) => dimensions[i].values[d.dimensions[i].values.findIndex((v) => v.id === id)]);
-    if (rule) rules[cellKey(labels)] = rule;
+    if (rule) rules[cellKey(labelsOf(d, ids))] = rule;
   }
   return { name: d.name.trim(), partOfSpeech: d.partOfSpeech.trim().toLowerCase(), dimensions, rules };
+}
+
+/** Where each saved cell went, and the origins to use once this draft is saved. */
+function cellMoves(d: Draft) {
+  const moves: Record<string, string> = {};
+  const origins: Record<string, string> = {};
+  for (const ids of idCells(d)) {
+    const key = JSON.stringify(ids);
+    const now = cellKey(labelsOf(d, ids));
+    if (d.origins[key]) moves[d.origins[key]] = now;
+    origins[key] = now;
+  }
+  return { moves, origins };
 }
 
 export function ParadigmEditor({
@@ -73,7 +106,7 @@ export function ParadigmEditor({
   categories: Category[];
   sampleWords: string[];
   posOptions: string[];
-  save: (input: Initial) => Promise<SaveResult>;
+  save: (input: Initial, moves: Record<string, string>) => Promise<SaveResult>;
   remove: () => Promise<void>;
 }) {
   const [draft, setDraft] = useState(() => toDraft(initial));
@@ -107,30 +140,35 @@ export function ParadigmEditor({
 
   function addDimension() {
     const value = { id: newId(), label: "" };
-    // Existing rules move into the new dimension's first value.
-    const rules: Record<string, string> = {};
-    for (const [key, rule] of Object.entries(draft.rules)) rules[JSON.stringify([...JSON.parse(key), value.id])] = rule;
-    update({ dimensions: [...draft.dimensions, { id: newId(), name: "", values: [value] }], rules });
+    // Existing cells move into the new dimension's first value.
+    const move = (ids: string[]) => [...ids, value.id];
+    update({
+      dimensions: [...draft.dimensions, { id: newId(), name: "", values: [value] }],
+      rules: remap(draft.rules, move),
+      origins: remap(draft.origins, move),
+    });
   }
 
   function removeDimension(i: number) {
     const dim = draft.dimensions[i];
     const first = dim.values[0];
-    const keepNote = first?.label ? ` Only the rules for “${first.label}” are kept.` : "";
+    const keepNote = first?.label ? ` Only the rules and irregular forms for “${first.label}” are kept.` : "";
     if (!window.confirm(`Remove ${dim.name || "this dimension"}?${keepNote}`)) return;
-    const rules: Record<string, string> = {};
-    for (const [key, rule] of Object.entries(draft.rules)) {
-      const ids: string[] = JSON.parse(key);
-      if (ids[i] === first?.id) rules[JSON.stringify(ids.filter((_, j) => j !== i))] = rule;
-    }
-    update({ dimensions: draft.dimensions.filter((_, j) => j !== i), rules });
+    const move = (ids: string[]) => (ids[i] === first?.id ? ids.filter((_, j) => j !== i) : null);
+    update({
+      dimensions: draft.dimensions.filter((_, j) => j !== i),
+      rules: remap(draft.rules, move),
+      origins: remap(draft.origins, move),
+    });
   }
 
   function onSave() {
+    const { moves, origins } = cellMoves(draft);
     startSaving(async () => {
-      const result = await save(input);
+      const result = await save(input, moves);
       if (result.ok) {
         setSavedJson(JSON.stringify(input));
+        setDraft((d) => ({ ...d, origins }));
         setStatus({ ok: true, text: "Saved" });
       } else {
         setStatus({ ok: false, text: result.error });
