@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { languageClassSource } from "@/lib/language-classes";
 import { storedParadigm } from "@/lib/paradigm-input";
@@ -14,7 +15,7 @@ export default async function ParadigmPage({ params }: PageProps<"/languages/[id
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/inflection/${paradigmId}`);
 
   const paradigm = await db.paradigm.findFirst({
-    where: { id: paradigmId, languageId: id, language: { ownerId: userId } },
+    where: { id: paradigmId, languageId: id, language: editableBy(userId) },
     include: { language: { select: { name: true } } },
   });
   if (!paradigm) notFound();

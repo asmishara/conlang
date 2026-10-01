@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { generatorInput } from "@/lib/generator-input";
 
@@ -12,7 +13,7 @@ export async function saveGeneratorSettings(languageId: string, settings: unknow
   if (!userId) return { ok: false, error: "You are signed out. Sign in again to save." };
 
   const language = await db.language.findFirst({
-    where: { id: languageId, ownerId: userId },
+    where: { id: languageId, ...editableBy(userId) },
     select: { id: true },
   });
   if (!language) return { ok: false, error: "Language not found." };

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { prepareWords } from "@/lib/lexicon";
 import { compilePhonotactics, describeProblem, phonotacticsOf } from "@/lib/phonotactics";
@@ -19,7 +20,7 @@ export default async function LexiconPage({ params, searchParams }: PageProps<"/
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/lexicon`);
 
   const language = await db.language.findFirst({
-    where: { id, ownerId: userId },
+    where: { id, ...editableBy(userId) },
     select: {
       id: true,
       name: true,

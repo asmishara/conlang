@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { countRules } from "@/lib/sound-changes";
 import { createSoundChangeSet } from "./actions";
@@ -12,7 +13,7 @@ export default async function SoundChangesPage({ params }: PageProps<"/languages
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/sound-changes`);
 
   const language = await db.language.findFirst({
-    where: { id, ownerId: userId },
+    where: { id, ...editableBy(userId) },
     select: { id: true, name: true, soundChanges: { orderBy: { createdAt: "asc" } } },
   });
   if (!language) notFound();

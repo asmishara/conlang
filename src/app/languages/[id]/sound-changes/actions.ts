@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { currentUserId } from "@/auth";
+import { canEdit, editableBy } from "@/lib/access";
 import { planDaughter } from "@/lib/daughter";
 import { db } from "@/lib/db";
 import { languageClassSource } from "@/lib/language-classes";
@@ -18,19 +19,12 @@ const setInput = z.object({
   rules: z.string().max(20000, "Rules can be at most 20,000 characters"),
 });
 
-async function ownsLanguage(languageId: string): Promise<boolean> {
-  const userId = await currentUserId();
-  if (!userId) return false;
-  const language = await db.language.findFirst({ where: { id: languageId, ownerId: userId }, select: { id: true } });
-  return language !== null;
-}
-
 export async function createSoundChangeSet(
   languageId: string,
   _prev: CreateState,
   formData: FormData,
 ): Promise<CreateState> {
-  if (!(await ownsLanguage(languageId))) return { error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { error: "You can't edit this language. Try signing in again." };
   const name = nameInput.safeParse(String(formData.get("name") ?? "").trim() || "Sound changes");
   if (!name.success) return { error: name.error.issues[0].message };
 
@@ -41,7 +35,7 @@ export async function createSoundChangeSet(
 
 /** Saves a rule set. Lines with problems are kept, so a half-written rule isn't lost; they're skipped when applied. */
 export async function saveSoundChangeSet(languageId: string, setId: string, input: unknown): Promise<SaveResult> {
-  if (!(await ownsLanguage(languageId))) return { ok: false, error: "You can't edit this language. Try signing in again." };
+  if (!(await canEdit(languageId))) return { ok: false, error: "You can't edit this language. Try signing in again." };
   const parsed = setInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
@@ -52,7 +46,7 @@ export async function saveSoundChangeSet(languageId: string, setId: string, inpu
 }
 
 export async function deleteSoundChangeSet(languageId: string, setId: string) {
-  if (!(await ownsLanguage(languageId))) redirect("/signin");
+  if (!(await canEdit(languageId))) redirect("/signin");
   await db.soundChangeSet.deleteMany({ where: { id: setId, languageId } });
   revalidatePath(`/languages/${languageId}`, "layout");
   redirect(`/languages/${languageId}/sound-changes`);
@@ -72,7 +66,7 @@ export async function createDaughterLanguage(
   const userId = await currentUserId();
   if (!userId) return { error: "You can't edit this language. Try signing in again." };
   const set = await db.soundChangeSet.findFirst({
-    where: { id: setId, languageId, language: { ownerId: userId } },
+    where: { id: setId, languageId, language: editableBy(userId) },
     include: { language: { select: { name: true } } },
   });
   if (!set) return { error: "This rule set no longer exists." };

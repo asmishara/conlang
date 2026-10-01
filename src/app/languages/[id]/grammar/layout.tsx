@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
 import { GrammarNav } from "@/components/grammar-nav";
+import { editableBy } from "@/lib/access";
 import { db } from "@/lib/db";
 import { buildTree } from "@/lib/grammar";
 import { createPage } from "./actions";
@@ -12,7 +13,7 @@ export default async function GrammarLayout({ children, params }: LayoutProps<"/
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}/grammar`);
 
   const language = await db.language.findFirst({
-    where: { id, ownerId: userId },
+    where: { id, ...editableBy(userId) },
     select: {
       id: true,
       name: true,
