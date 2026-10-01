@@ -31,16 +31,18 @@ credentials are hidden from the sign-in page.
 ## Deploying on Railway
 
 The site runs on [Railway](https://railway.com) as a web service plus a Postgres
-database. `railway.json` runs `npm run db:deploy` before each deploy, so new
-tables and columns are created automatically; if that step fails, the previous
-deploy keeps running.
+database.
 
-1. Add a Postgres database to the Railway project.
+1. Add a Postgres database to the Railway project, or use one hosted elsewhere.
 2. In the web service's variables, set:
-   - `DATABASE_URL` to `${{Postgres.DATABASE_URL}}`
+   - `DATABASE_URL` to the database's connection string (`${{Postgres.DATABASE_URL}}` for a Railway Postgres)
    - `AUTH_SECRET` to a random string (`npx auth secret` makes one)
    - `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` and/or `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`
-3. Give the service a public domain, then add its callback URL to each OAuth app,
+3. In the service's **Settings → Deploy**, set the **Pre-deploy Command** to
+   `npm run db:deploy`. It creates and updates the database tables before each
+   deploy; if it fails, the previous deploy keeps running. (Railway doesn't read
+   `railway.json` for new services, so this has to be set in the dashboard.)
+4. Give the service a public domain, then add its callback URL to each OAuth app,
    e.g. `https://your-app.up.railway.app/api/auth/callback/github`.
 
 Sign-in uses the Railway domain automatically. If you add a custom domain, set
