@@ -1,10 +1,10 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserId } from "@/auth";
 import { db } from "@/lib/db";
 import { deleteLanguage } from "../actions";
 
 const sections = [
-  { title: "Phonology", note: "Sound inventory and spelling rules (coming in M1)." },
   { title: "Lexicon", note: "Your dictionary (coming in M1)." },
   { title: "Word generator", note: "Generate words that fit your phonology (coming in M1)." },
   { title: "Grammar", note: "Grammar pages and inflection tables (coming in M2)." },
@@ -15,7 +15,10 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
   const userId = await currentUserId();
   if (!userId) redirect(`/signin?callbackUrl=/languages/${id}`);
 
-  const language = await db.language.findFirst({ where: { id, ownerId: userId } });
+  const language = await db.language.findFirst({
+    where: { id, ownerId: userId },
+    include: { _count: { select: { phonemes: true } } },
+  });
   if (!language) notFound();
 
   return (
@@ -31,6 +34,17 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        <Link
+          href={`/languages/${language.id}/phonology`}
+          className="rounded-lg border border-black/10 p-4 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <h2 className="font-semibold">Phonology</h2>
+          <p className="text-sm opacity-70">
+            {language._count.phonemes === 0
+              ? "Choose your sounds and how they are spelled."
+              : `${language._count.phonemes} sound${language._count.phonemes === 1 ? "" : "s"}`}
+          </p>
+        </Link>
         {sections.map((s) => (
           <div key={s.title} className="rounded-lg border border-black/10 p-4 dark:border-white/15">
             <h2 className="font-semibold">{s.title}</h2>
