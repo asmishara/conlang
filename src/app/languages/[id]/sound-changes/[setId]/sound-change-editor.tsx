@@ -3,9 +3,17 @@
 import { Fragment, useDeferredValue, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Category } from "@/lib/generator";
 import { chartSymbols } from "@/lib/ipa";
-import { spell, type SpellingRule } from "@/lib/orthography";
-import { cleanPronunciation, compileSoundChanges, evolve, inventoryClasses, type Step } from "@/lib/sound-changes";
-import type { SaveResult } from "../actions";
+import {
+  cleanPronunciation,
+  compileSoundChanges,
+  evolve,
+  inventoryClasses,
+  soundsIn,
+  spellResult,
+  type Step,
+} from "@/lib/sound-changes";
+import type { CreateState, SaveResult } from "../actions";
+import { DaughterForm } from "./daughter-form";
 
 const field = "rounded-md border border-black/15 bg-transparent dark:border-white/20";
 const symbolButton = "h-7 min-w-7 rounded px-1 font-ipa text-base leading-none hover:bg-black/10 dark:hover:bg-white/15";
@@ -19,14 +27,6 @@ type Phoneme = { ipa: string; kind: "CONSONANT" | "VOWEL"; spelling: string };
 type WordRow = { id: string; form: string; gloss: string; ipa: string };
 type SetInput = { name: string; rules: string };
 
-/** Spells a result with the language's spelling, keeping spaces and hyphens. */
-function spellResult(ipa: string, rules: SpellingRule[]): string {
-  return ipa
-    .split(/([\s-]+)/)
-    .map((part, i) => (i % 2 === 1 ? part : spell(part, rules)))
-    .join("");
-}
-
 export function SoundChangeEditor({
   languageName,
   initial,
@@ -35,6 +35,7 @@ export function SoundChangeEditor({
   words,
   save,
   remove,
+  makeDaughter,
 }: {
   languageName: string;
   initial: SetInput;
@@ -43,6 +44,7 @@ export function SoundChangeEditor({
   words: WordRow[];
   save: (input: SetInput) => Promise<SaveResult>;
   remove: () => Promise<void>;
+  makeDaughter: (prev: CreateState, formData: FormData) => Promise<CreateState>;
 }) {
   const [name, setName] = useState(initial.name);
   const [rules, setRules] = useState(initial.rules);
@@ -69,25 +71,30 @@ export function SoundChangeEditor({
   const inventory = useMemo(() => new Set(phonemes.map((p) => p.ipa.normalize("NFC"))), [phonemes]);
   // Typing stays responsive on a big lexicon; the results catch up.
   const deferredRules = useDeferredValue(rules);
-  const compiled = useMemo(() => compileSoundChanges(deferredRules, base), [deferredRules, base]);
+  const compiled = useMemo(
+    () => compileSoundChanges(deferredRules, base, [...inventory]),
+    [deferredRules, base, inventory],
+  );
   const results = useMemo(
     () => words.map((w) => ({ ...w, before: cleanPronunciation(w.ipa), ...evolve(compiled, w.ipa) })),
     [words, compiled],
   );
   // Sounds the rules bring in that the inventory doesn't have yet.
   const newSounds = useMemo(() => {
-    const soundsOf = (ipa: string) => ipa.split(/[\s-]+/).flatMap((part) => compiled.split(part));
     const found = new Set<string>();
     for (const r of results) {
       if (r.steps.length === 0) continue;
-      const before = new Set(soundsOf(r.before));
-      for (const sound of soundsOf(r.result)) if (!inventory.has(sound) && !before.has(sound)) found.add(sound);
+      const before = new Set(soundsIn(compiled, r.before));
+      for (const sound of soundsIn(compiled, r.result)) {
+        if (!inventory.has(sound) && !before.has(sound)) found.add(sound);
+      }
     }
     return [...found];
   }, [results, compiled, inventory]);
 
   const dirty = name !== saved.name || rules !== saved.rules;
   const changedCount = results.filter((r) => r.steps.length > 0).length;
+  const lostCount = results.filter((r) => r.result.trim() === "").length;
   const q = query.trim().toLowerCase();
   const filtered = results.filter(
     (r) =>
@@ -242,6 +249,16 @@ export function SoundChangeEditor({
           </form>
         </div>
       </section>
+
+      {words.length > 0 && (
+        <DaughterForm
+          action={makeDaughter}
+          defaultName={saved.name}
+          unsaved={dirty}
+          wordCount={words.length}
+          lostCount={lostCount}
+        />
+      )}
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Results</h2>

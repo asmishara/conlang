@@ -12,7 +12,11 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
 
   const language = await db.language.findFirst({
     where: { id, ownerId: userId },
-    include: { _count: { select: { phonemes: true, words: true, grammarPages: true, paradigms: true, soundChanges: true } } },
+    include: {
+      _count: { select: { phonemes: true, words: true, grammarPages: true, paradigms: true, soundChanges: true } },
+      parent: { select: { id: true, name: true, ownerId: true } },
+      daughters: { where: { ownerId: userId }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } },
+    },
   });
   if (!language) notFound();
 
@@ -26,6 +30,31 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
           )}
         </h1>
         {language.description && <p className="max-w-prose opacity-80">{language.description}</p>}
+        {((language.parent && language.parent.ownerId === userId) || language.daughters.length > 0) && (
+          <p className="text-sm opacity-80">
+            {language.parent && language.parent.ownerId === userId && (
+              <span className="mr-4">
+                Descended from{" "}
+                <Link href={`/languages/${language.parent.id}`} className="underline">
+                  {language.parent.name}
+                </Link>
+              </span>
+            )}
+            {language.daughters.length > 0 && (
+              <span>
+                Daughter language{language.daughters.length === 1 ? "" : "s"}:{" "}
+                {language.daughters.map((d, i) => (
+                  <span key={d.id}>
+                    {i > 0 && ", "}
+                    <Link href={`/languages/${d.id}`} className="underline">
+                      {d.name}
+                    </Link>
+                  </span>
+                ))}
+              </span>
+            )}
+          </p>
+        )}
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">

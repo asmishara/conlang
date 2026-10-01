@@ -79,6 +79,15 @@ export function pronounce(word: string, rules: SpellingRule[]): string {
     .join("");
 }
 
+/** Like pronounce, but keeps the spaces between the words of a phrase. */
+export function pronouncePhrase(text: string, rules: SpellingRule[]): string {
+  return text
+    .trim()
+    .split(/\s+/)
+    .map((word) => pronounce(word, rules))
+    .join(" ");
+}
+
 /**
  * Builds a comparator that sorts words in the language's alphabet: letters
  * are its spellings in order (so a digraph like "ng" is one letter that

@@ -16,6 +16,7 @@
 // Lines starting with # are notes.
 
 import type { Category } from "./generator";
+import { spell, type SpellingRule } from "./orthography";
 
 /** Each class letter and the sounds (IPA) it stands for, in order. */
 export type SoundClassMap = Map<string, string[]>;
@@ -65,6 +66,19 @@ export function inventoryClasses(
   set("V", phonemes.filter((p) => p.kind === "VOWEL").map((p) => p.ipa));
   for (const c of categories) set(c.label, c.members);
   return classes;
+}
+
+/** Spells a result with a language's spelling, keeping spaces and hyphens. */
+export function spellResult(ipa: string, rules: SpellingRule[]): string {
+  return ipa
+    .split(/([\s-]+)/)
+    .map((part, i) => (i % 2 === 1 ? part : spell(part, rules)))
+    .join("");
+}
+
+/** The sounds in a result, leaving out spaces and hyphens. */
+export function soundsIn(compiled: CompiledChanges, ipa: string): string[] {
+  return ipa.split(/[\s-]+/).flatMap((part) => (part ? compiled.split(part) : []));
 }
 
 /** Takes a pronunciation as the rules see it: no slashes, stress or syllable marks. */
@@ -368,12 +382,16 @@ export function countRules(source: string): number {
   }).length;
 }
 
-/** Reads a list of sound changes. Lines with problems are reported and skipped. */
-export function compileSoundChanges(source: string, base: SoundClassMap): CompiledChanges {
+/**
+ * Reads a list of sound changes. Lines with problems are reported and
+ * skipped. `inventory` lists sounds to treat as single sounds even when no
+ * class includes them.
+ */
+export function compileSoundChanges(source: string, base: SoundClassMap, inventory: string[] = []): CompiledChanges {
   const lines = source.normalize("NFC").split(/\r?\n/);
 
-  // Every sound named in a class is one sound wherever it appears.
-  const known = [...base.values()].flat();
+  // Every sound in the inventory or named in a class is one sound wherever it appears.
+  const known = [...inventory, ...[...base.values()].flat()];
   for (const raw of lines) {
     const def = raw.trim().match(CLASS_LINE);
     if (def) known.push(...definedMembers(def[2]));
