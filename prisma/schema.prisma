@@ -73,20 +73,21 @@ enum Visibility {
 }
 
 model Language {
-  id           String         @id @default(cuid())
+  id           String           @id @default(cuid())
   ownerId      String
-  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name         String
   autonym      String?
   description  String?
-  visibility   Visibility     @default(PRIVATE)
+  visibility   Visibility       @default(PRIVATE)
   phonemes     Phoneme[]
   words        Word[]
   generator    WordGenerator?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   grammarPages GrammarPage[]
   paradigms    Paradigm[]
+  soundChanges SoundChangeSet[]
 
   @@index([ownerId])
 }
@@ -198,4 +199,19 @@ model IrregularForm {
 
   @@unique([wordId, paradigmId, cell])
   @@index([paradigmId])
+}
+
+/// An ordered list of sound changes to run the language's words through,
+/// e.g. the changes from this language to one of its descendants.
+model SoundChangeSet {
+  id         String   @id @default(cuid())
+  languageId String
+  language   Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  name       String
+  /// One rule or class per line, like "p t k > b d g / V_V".
+  rules      String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([languageId])
 }

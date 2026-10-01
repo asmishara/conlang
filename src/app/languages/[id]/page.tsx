@@ -12,7 +12,7 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
 
   const language = await db.language.findFirst({
     where: { id, ownerId: userId },
-    include: { _count: { select: { phonemes: true, words: true, grammarPages: true, paradigms: true } } },
+    include: { _count: { select: { phonemes: true, words: true, grammarPages: true, paradigms: true, soundChanges: true } } },
   });
   if (!language) notFound();
 
@@ -78,6 +78,17 @@ export default async function LanguagePage({ params }: PageProps<"/languages/[id
             {language._count.paradigms === 0
               ? "Set up tables of word forms, like case and number."
               : `${language._count.paradigms} table${language._count.paradigms === 1 ? "" : "s"}`}
+          </p>
+        </Link>
+        <Link
+          href={`/languages/${language.id}/sound-changes`}
+          className="rounded-lg border border-black/10 p-4 hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <h2 className="font-semibold">Sound changes</h2>
+          <p className="text-sm opacity-70">
+            {language._count.soundChanges === 0
+              ? "Evolve your words with rules like p > f / V_V."
+              : `${language._count.soundChanges} rule set${language._count.soundChanges === 1 ? "" : "s"}`}
           </p>
         </Link>
       </div>
