@@ -5,6 +5,12 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
 
+// `next start` only knows it is on localhost, so Auth.js needs the public address
+// to build sign-in callback URLs. Railway provides its domain; elsewhere set AUTH_URL.
+if (!process.env.AUTH_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
+  process.env.AUTH_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+}
+
 // Each provider is enabled only when its credentials are set, so the app
 // runs locally with whichever sign-in options you have configured.
 const providers: Provider[] = [];
